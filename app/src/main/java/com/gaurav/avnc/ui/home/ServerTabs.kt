@@ -14,6 +14,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.forEach
+import androidx.core.view.isVisible
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -125,6 +126,8 @@ class ServerTabs(val activity: HomeActivity) {
         binding.serversRv.setHasFixedSize(true)
 
         activity.viewModel.serverProfiles.observe(activity) { adapter.submitList(it) }
+        activity.viewModel.selectedProfileIds.observe(activity) { adapter.notifyDataSetChanged() }
+        activity.viewModel.profileSelectionMode.observe(activity) { adapter.notifyDataSetChanged() }
         return binding.root
     }
 
@@ -146,10 +149,20 @@ class ServerTabs(val activity: HomeActivity) {
             holder.profile = profile
             holder.binding.viewModel = profile
             holder.binding.indicator.setup(profile, viewModel.rediscoveredProfiles)
+            holder.binding.selectionCheck.isVisible = viewModel.profileSelectionMode.value == true
+            holder.binding.selectionCheck.isChecked = profile.ID in viewModel.selectedProfileIds.value.orEmpty()
         }
 
         inner class ViewHolder(val binding: ServerSavedItemBinding)
-            : ProfileViewHolder(viewModel, binding.root, if (canEditServers) R.menu.saved_server_editable else R.menu.saved_server)
+            : ProfileViewHolder(viewModel, binding.root, if (canEditServers) R.menu.saved_server_editable else R.menu.saved_server) {
+
+            override fun onProfileClick() {
+                if (viewModel.profileSelectionMode.value == true)
+                    viewModel.toggleProfileSelection(profile)
+                else
+                    super.onProfileClick()
+            }
+        }
 
         object Differ : DiffUtil.ItemCallback<ServerProfile>() {
             override fun areItemsTheSame(old: ServerProfile, new: ServerProfile) = (old.ID == new.ID)
@@ -226,7 +239,7 @@ class ServerTabs(val activity: HomeActivity) {
         var profile = ServerProfile()
 
         init {
-            rootView.setOnClickListener { homeViewModel.startConnection(profile) }
+            rootView.setOnClickListener { onProfileClick() }
 
             rootView.setOnCreateContextMenuListener { contextMenu, view, _ ->
                 MenuInflater(view.context).inflate(contextMenuId, contextMenu)
@@ -234,6 +247,10 @@ class ServerTabs(val activity: HomeActivity) {
                     item.setOnMenuItemClickListener { onContextMenuItemClick(it); true }
                 }
             }
+        }
+
+        protected open fun onProfileClick() {
+            homeViewModel.startConnection(profile)
         }
 
         private fun onContextMenuItemClick(item: MenuItem) {

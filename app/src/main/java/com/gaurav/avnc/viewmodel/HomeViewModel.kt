@@ -40,6 +40,15 @@ class HomeViewModel(app: Application) : BaseViewModel(app) {
     val newConnectionEvent = LiveEvent<ServerProfile>()
 
     /**
+     * Used for starting multi-viewer with selected saved profiles.
+     */
+    val newMultiConnectionEvent = LiveEvent<LongArray>()
+
+    val profileSelectionMode = MutableLiveData(false)
+
+    val selectedProfileIds = MutableLiveData<Set<Long>>(emptySet())
+
+    /**
      * This event is used for editing/creating server profiles.
      * Home activity observes this event and starts profile editor when it is fired.
      */
@@ -61,6 +70,43 @@ class HomeViewModel(app: Application) : BaseViewModel(app) {
      * Starts new connection to given profile.
      */
     fun startConnection(profile: ServerProfile) = newConnectionEvent.fire(profile)
+
+    fun toggleProfileSelection(profile: ServerProfile) {
+        if (profile.ID == 0L)
+            return
+
+        val selected = selectedProfileIds.value.orEmpty().toMutableSet()
+        if (!selected.add(profile.ID))
+            selected.remove(profile.ID)
+        selectedProfileIds.value = selected
+    }
+
+    fun beginProfileSelection() {
+        profileSelectionMode.value = true
+    }
+
+    fun clearProfileSelection() {
+        profileSelectionMode.value = false
+        selectedProfileIds.value = emptySet()
+    }
+
+    fun startSelectedConnections() {
+        val ids = selectedProfileIds.value.orEmpty().toLongArray()
+        if (ids.isNotEmpty()) {
+            clearProfileSelection()
+            newMultiConnectionEvent.fire(ids)
+        }
+    }
+
+    fun startAllSavedConnections() {
+        val ids = serverProfiles.value.orEmpty()
+                .map { it.ID }
+                .filter { it != 0L }
+                .toLongArray()
+
+        if (ids.isNotEmpty())
+            newMultiConnectionEvent.fire(ids)
+    }
 
     fun maybeConnectOnAppStart() = launchMain {
         serverProfileDao.getConnectableOnAppStart().firstOrNull()?.let { startConnection(it) }

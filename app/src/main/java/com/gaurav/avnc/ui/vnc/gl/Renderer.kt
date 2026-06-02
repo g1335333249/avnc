@@ -27,10 +27,15 @@ import javax.microedition.khronos.opengles.GL10
 /**
  * Frame renderer.
  */
-class Renderer(val viewModel: VncViewModel) : GLSurfaceView.Renderer {
+class Renderer(private val target: FrameRenderTarget) : GLSurfaceView.Renderer {
+
+    constructor(viewModel: VncViewModel) : this(object : FrameRenderTarget {
+        override val client get() = viewModel.client
+        override val frameState get() = viewModel.frameState
+        override val drawRemoteCursor get() = !viewModel.pref.input.hideRemoteCursor
+    })
 
     private val projectionMatrix = FloatArray(16)
-    private val drawCursor = !viewModel.pref.input.hideRemoteCursor
     private lateinit var program: Program
     private lateinit var frame: Frame
     private lateinit var cursor: Cursor
@@ -83,11 +88,11 @@ class Renderer(val viewModel: VncViewModel) : GLSurfaceView.Renderer {
         glClear(GL_COLOR_BUFFER_BIT)
         glDisable(GL_BLEND)
 
-        val client = viewModel.client ?: return
+        val client = target.client ?: return
         if (!client.connected || client.frameBufferUpdatesPaused.get())
             return
 
-        val state = viewModel.frameState.getSnapshot()
+        val state = target.frameState.getSnapshot()
         if (state.vpWidth == 0f || state.vpHeight == 0f)
             return
 
@@ -106,7 +111,7 @@ class Renderer(val viewModel: VncViewModel) : GLSurfaceView.Renderer {
 
         program.validate()
 
-        if (drawCursor) {
+        if (target.drawRemoteCursor) {
             glEnable(GL_BLEND)
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
             val ci = client.cursorInfo

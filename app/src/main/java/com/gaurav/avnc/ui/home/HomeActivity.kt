@@ -27,6 +27,7 @@ import com.gaurav.avnc.databinding.ActivityHomeBinding
 import com.gaurav.avnc.model.ServerProfile
 import com.gaurav.avnc.ui.about.AboutActivity
 import com.gaurav.avnc.ui.prefs.PrefsActivity
+import com.gaurav.avnc.ui.multi.startMultiVncActivity
 import com.gaurav.avnc.ui.vnc.IntentReceiverActivity
 import com.gaurav.avnc.ui.vnc.startVncActivity
 import com.gaurav.avnc.util.Debugging
@@ -68,6 +69,7 @@ class HomeActivity : AppCompatActivity() {
         viewModel.profileSavedEvent.observe(this) { onProfileInserted(it) }
         viewModel.profileDeletedEvent.observe(this) { onProfileDeleted(it) }
         viewModel.newConnectionEvent.observe(this) { startNewConnection(it) }
+        viewModel.newMultiConnectionEvent.observe(this) { startNewMultiConnection(it) }
         viewModel.discovery.servers.observe(this) { updateDiscoveryBadge(it) }
         viewModel.serverProfiles.observe(this) { updateShortcuts(it) }
 
@@ -92,6 +94,7 @@ class HomeActivity : AppCompatActivity() {
      */
     private fun onMenuItemSelected(itemId: Int): Boolean {
         when (itemId) {
+            R.id.multi_viewer -> showMultiViewer()
             R.id.settings -> showSettings()
             R.id.about -> showAbout()
             R.id.report_bug -> launchBugReport()
@@ -104,6 +107,20 @@ class HomeActivity : AppCompatActivity() {
     private fun startNewConnection(profile: ServerProfile) {
         if (checkNativeLib())
             startVncActivity(this, profile)
+    }
+
+    private fun startNewMultiConnection(profileIds: LongArray) {
+        if (checkNativeLib())
+            startMultiVncActivity(this, profileIds)
+    }
+
+    private fun showMultiViewer() {
+        if (viewModel.serverProfiles.value.orEmpty().none { it.ID != 0L }) {
+            Snackbar.make(binding.root, R.string.msg_no_saved_servers, Snackbar.LENGTH_SHORT).show()
+            return
+        }
+
+        viewModel.startAllSavedConnections()
     }
 
     /**

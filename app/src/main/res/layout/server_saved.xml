@@ -38,14 +38,56 @@
             app:isVisible="@{viewModel.serverProfiles.empty}"
             tools:visibility="visible" />
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            style="@style/Widget.MaterialComponents.FloatingActionButton"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_margin="@dimen/margin_normal"
-            android:contentDescription="@string/desc_add_new_server_btn"
-            android:onClick="@{()-> viewModel.onNewProfile()}"
-            android:src="@drawable/ic_plus" />
+            android:gravity="end"
+            android:orientation="horizontal"
+            app:isVisible="@{!viewModel.profileSelectionMode}">
+
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/margin_small"
+                android:onClick="@{()-> viewModel.beginProfileSelection()}"
+                android:text="@string/title_select"
+                app:icon="@drawable/ic_broadcast" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                style="@style/Widget.MaterialComponents.FloatingActionButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/desc_add_new_server_btn"
+                android:onClick="@{()-> viewModel.onNewProfile()}"
+                android:src="@drawable/ic_plus" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="@dimen/margin_normal"
+            android:gravity="end"
+            android:orientation="horizontal"
+            app:isVisible="@{viewModel.profileSelectionMode}">
+
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/margin_small"
+                android:onClick="@{()-> viewModel.clearProfileSelection()}"
+                android:text="@string/title_cancel"
+                app:icon="@drawable/ic_clear" />
+
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="@{()-> viewModel.startSelectedConnections()}"
+                android:text="@string/title_start_selected"
+                app:icon="@drawable/ic_broadcast"
+                app:isVisible="@{!viewModel.selectedProfileIds.empty}" />
+        </LinearLayout>
     </FrameLayout>
 </layout>

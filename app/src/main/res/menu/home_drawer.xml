@@ -8,6 +8,11 @@
 
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+        android:id="@+id/multi_viewer"
+        android:icon="@drawable/ic_broadcast"
+        android:title="@string/title_multi_viewer" />
+
+    <item
         android:id="@+id/settings"
         android:icon="@drawable/ic_settings"
         android:title="@string/title_settings" />

@@ -62,6 +62,11 @@
             tools:ignore="UnusedAttribute" />
 
         <activity
+            android:name=".ui.multi.MultiVncActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:resizeableActivity="true" />
+
+        <activity
             android:name=".ui.vnc.IntentReceiverActivity"
             android:theme="@style/App.SplashTheme.Dark" />
 

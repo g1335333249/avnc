@@ -62,6 +62,11 @@
     <string name="title_next">Next</string>
     <string name="title_got_it">Got it</string>
     <string name="title_load_defaults">Load defaults</string>
+    <string name="title_select">Select</string>
+    <string name="title_multi_viewer">Multi viewer</string>
+    <string name="title_stop">Stop</string>
+    <string name="title_stop_all">Stop all</string>
+    <string name="title_start_selected">Start selected</string>
 
 
     <string name="hint_urlbar">Connect to a Server</string>
@@ -106,6 +111,7 @@
     <string name="msg_invalid_key_file">Invalid private key file</string>
     <string name="msg_invalid_vnc_uri">Invalid VNC URI</string>
     <string name="msg_copied_to_clipboard">Copied</string>
+    <string name="msg_no_saved_servers">No saved servers</string>
     <string name="msg_tap_to_select_a_key">Tap to select a key:</string>
     <string name="msg_button_up_delay_help">Delaying click events can help in some rare cases if an app is not responding to clicks.</string>
     <string name="msg_wake_on_lan_help">Wake-on-LAN can be used to remotely power-on a computer.\n\nFirst, configure WoL on remote computer, then enable it in AVNC.\nOnce enabled, WoL magic packet will be automatically sent before connecting to this server.</string>
