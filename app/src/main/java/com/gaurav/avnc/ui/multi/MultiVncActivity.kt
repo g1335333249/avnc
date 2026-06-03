@@ -145,7 +145,6 @@ class MultiVncActivity : AppCompatActivity() {
             private val titleView: TextView = view.findViewById(R.id.title)
             private val stateContainer: View = view.findViewById(R.id.state_container)
             private val stateView: TextView = view.findViewById(R.id.state)
-            private val stopBtn: MaterialButton = view.findViewById(R.id.stop_btn)
             private val reconnectBtn: MaterialButton = view.findViewById(R.id.reconnect_btn)
             var sessionId = 0L
                 private set
@@ -162,7 +161,6 @@ class MultiVncActivity : AppCompatActivity() {
                 frameView.setFramebufferSize(snapshot.framebufferWidth, snapshot.framebufferHeight)
                 frameViews[snapshot.id] = frameView
 
-                stopBtn.setOnClickListener { viewModel.stop(snapshot.id) }
                 reconnectBtn.setOnClickListener { viewModel.reconnect(snapshot.id) }
                 frameView.onResume()
             }

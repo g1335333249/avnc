@@ -10,24 +10,61 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="240dp"
-    android:layout_margin="@dimen/margin_small"
-    app:cardElevation="@dimen/server_card_elevation">
+    android:layout_height="280dp"
+    android:layout_margin="@dimen/margin_normal"
+    app:cardElevation="@dimen/server_card_elevation"
+    app:strokeColor="@color/colorBorder"
+    app:strokeWidth="@dimen/server_card_stroke_width">
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <com.gaurav.avnc.ui.multi.MultiFrameView
-            android:id="@+id/frame_view"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/bg_frame_view" />
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <com.gaurav.avnc.ui.multi.MultiFrameView
+                android:id="@+id/frame_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_frame_view" />
+
+            <LinearLayout
+                android:id="@+id/state_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?colorSurface"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="@dimen/padding_normal"
+                tools:visibility="visible">
+
+                <TextView
+                    android:id="@+id/state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                    tools:text="Disconnected" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/reconnect_btn"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/margin_small"
+                    android:text="@string/title_reconnect"
+                    app:icon="@drawable/ic_refresh"
+                    tools:visibility="visible" />
+            </LinearLayout>
+        </FrameLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#AA000000"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:padding="@dimen/padding_small">
@@ -39,47 +76,8 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@android:color/white"
                 android:textStyle="bold"
                 tools:text="Work PC" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/stop_btn"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:minWidth="0dp"
-                android:text="@string/title_stop"
-                android:textColor="@android:color/white" />
         </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/state_container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="?colorSurface"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="@dimen/padding_normal"
-            tools:visibility="visible">
-
-            <TextView
-                android:id="@+id/state"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                tools:text="Disconnected" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/reconnect_btn"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/margin_small"
-                android:text="@string/title_reconnect"
-                app:icon="@drawable/ic_refresh"
-                tools:visibility="visible" />
-        </LinearLayout>
-    </FrameLayout>
+    </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
