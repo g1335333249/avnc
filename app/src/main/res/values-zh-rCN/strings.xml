@@ -212,6 +212,7 @@
     <string name="title_reconnect">重新连接</string>
     <string name="title_start_selected">启动所选</string>
     <string name="title_sync_input">同步控制</string>
+    <string name="title_controls">控制</string>
     <string name="state_created">已创建</string>
     <string name="state_connecting">正在连接</string>
     <string name="state_connected">已连接</string>

@@ -11,16 +11,20 @@ package com.gaurav.avnc.ui.multi
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewConfiguration
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -28,6 +32,9 @@ import com.gaurav.avnc.R
 import com.gaurav.avnc.session.MultiRemoteSessionManager
 import com.gaurav.avnc.viewmodel.MultiVncViewModel
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import kotlin.math.abs
+import kotlin.math.max
 
 private const val PROFILE_IDS_KEY = "com.gaurav.avnc.multi.profile_ids"
 
@@ -46,27 +53,52 @@ class MultiVncActivity : AppCompatActivity() {
     private val viewModel by viewModels<MultiVncViewModel>()
     private lateinit var adapter: SessionAdapter
     private lateinit var recyclerView: RecyclerView
+    private lateinit var toolbar: View
+    private lateinit var stopAllButton: MaterialButton
     private lateinit var syncInputButton: MaterialButton
+    private lateinit var controlsToggleButton: FloatingActionButton
+    private lateinit var controlsDismissArea: View
+    private lateinit var landscapeControls: View
+    private lateinit var landscapeSyncInputButton: MaterialButton
+    private lateinit var landscapeStopAllButton: MaterialButton
+    private var controlsExpanded = false
+    private var controlsToggleUserPositioned = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_multi_vnc)
 
+        toolbar = findViewById(R.id.toolbar)
+        stopAllButton = findViewById(R.id.stop_all_btn)
+        syncInputButton = findViewById(R.id.sync_input_btn)
+        controlsToggleButton = findViewById(R.id.controls_toggle_btn)
+        controlsDismissArea = findViewById(R.id.controls_dismiss_area)
+        landscapeControls = findViewById(R.id.landscape_controls)
+        landscapeSyncInputButton = findViewById(R.id.landscape_sync_input_btn)
+        landscapeStopAllButton = findViewById(R.id.landscape_stop_all_btn)
+
         recyclerView = findViewById(R.id.sessions_rv)
         adapter = SessionAdapter(viewModel)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        updateLayoutManager()
         recyclerView.adapter = adapter
 
-        syncInputButton = findViewById(R.id.sync_input_btn)
         syncInputButton.isCheckable = true
-        syncInputButton.addOnCheckedChangeListener { _, isChecked ->
-            adapter.syncInput = isChecked
-            adapter.updateSyncInput(recyclerView)
-            if (!isChecked)
-                viewModel.inputBroadcaster.clearTargets()
+        landscapeSyncInputButton.isCheckable = true
+        syncInputButton.addOnCheckedChangeListener { _, isChecked -> setSyncInput(isChecked) }
+        landscapeSyncInputButton.addOnCheckedChangeListener { _, isChecked -> setSyncInput(isChecked) }
+
+        setupDraggableControlsToggle()
+        controlsDismissArea.setOnClickListener {
+            controlsExpanded = false
+            updateControlVisibility()
         }
 
-        findViewById<MaterialButton>(R.id.stop_all_btn).setOnClickListener {
+        stopAllButton.setOnClickListener {
+            viewModel.stopAll()
+        }
+        landscapeStopAllButton.setOnClickListener {
+            controlsExpanded = false
+            updateControlVisibility()
             viewModel.stopAll()
         }
 
@@ -82,6 +114,11 @@ class MultiVncActivity : AppCompatActivity() {
         viewModel.start(profileIds)
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        updateLayoutManager()
+    }
+
     override fun onResume() {
         super.onResume()
         viewModel.onActivityResumed()
@@ -92,6 +129,109 @@ class MultiVncActivity : AppCompatActivity() {
         viewModel.onActivityPaused()
         adapter.pauseVisibleFrames(recyclerView)
         super.onPause()
+    }
+
+    private fun updateLayoutManager() {
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        recyclerView.layoutManager = if (landscape) {
+            GridLayoutManager(this, 2)
+        } else {
+            LinearLayoutManager(this)
+        }
+        if (!landscape)
+            controlsExpanded = false
+        updateControlVisibility()
+    }
+
+    private fun updateControlVisibility() {
+        if (!::toolbar.isInitialized)
+            return
+
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        toolbar.isVisible = !landscape
+        stopAllButton.isVisible = !landscape
+        controlsToggleButton.isVisible = landscape && !controlsExpanded
+        controlsDismissArea.isVisible = landscape && controlsExpanded
+        landscapeControls.isVisible = landscape && controlsExpanded
+        if (landscape)
+            controlsToggleButton.post { clampControlsTogglePosition() }
+    }
+
+    private fun setSyncInput(isChecked: Boolean) {
+        if (syncInputButton.isChecked != isChecked)
+            syncInputButton.isChecked = isChecked
+        if (landscapeSyncInputButton.isChecked != isChecked)
+            landscapeSyncInputButton.isChecked = isChecked
+
+        adapter.syncInput = isChecked
+        adapter.updateSyncInput(recyclerView)
+        if (!isChecked)
+            viewModel.inputBroadcaster.clearTargets()
+    }
+
+    private fun setupDraggableControlsToggle() {
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
+        var downRawX = 0f
+        var downRawY = 0f
+        var startX = 0f
+        var startY = 0f
+        var dragging = false
+
+        controlsToggleButton.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downRawX = event.rawX
+                    downRawY = event.rawY
+                    startX = view.x
+                    startY = view.y
+                    dragging = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downRawX
+                    val dy = event.rawY - downRawY
+                    if (dragging || abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                        dragging = true
+                        controlsToggleUserPositioned = true
+                        view.x = (startX + dx).coerceIn(0f, maxControlsToggleX())
+                        view.y = (startY + dy).coerceIn(0f, maxControlsToggleY())
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (dragging) {
+                        clampControlsTogglePosition()
+                    } else {
+                        controlsExpanded = !controlsExpanded
+                        updateControlVisibility()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (dragging)
+                        clampControlsTogglePosition()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun clampControlsTogglePosition() {
+        if (!controlsToggleUserPositioned)
+            return
+        controlsToggleButton.x = controlsToggleButton.x.coerceIn(0f, maxControlsToggleX())
+        controlsToggleButton.y = controlsToggleButton.y.coerceIn(0f, maxControlsToggleY())
+    }
+
+    private fun maxControlsToggleX(): Float {
+        val parent = controlsToggleButton.parent as? View ?: return controlsToggleButton.x
+        return max(0f, parent.width - controlsToggleButton.width.toFloat())
+    }
+
+    private fun maxControlsToggleY(): Float {
+        val parent = controlsToggleButton.parent as? View ?: return controlsToggleButton.y
+        return max(0f, parent.height - controlsToggleButton.height.toFloat())
     }
 
     private class SessionAdapter(private val viewModel: MultiVncViewModel)

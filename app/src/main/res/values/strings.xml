@@ -70,6 +70,7 @@
     <string name="title_reconnect">Reconnect</string>
     <string name="title_start_selected">Start selected</string>
     <string name="title_sync_input">Sync input</string>
+    <string name="title_controls">Controls</string>
 
     <string name="state_created">Created</string>
     <string name="state_connecting">Connecting</string>
