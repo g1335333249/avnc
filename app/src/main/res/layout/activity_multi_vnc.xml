@@ -17,7 +17,17 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:title="@string/title_multi_viewer" />
+        android:title="@string/title_multi_viewer">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/sync_input_btn"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginEnd="@dimen/margin_normal"
+            android:text="@string/title_sync_input" />
+    </com.google.android.material.appbar.MaterialToolbar>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/sessions_rv"

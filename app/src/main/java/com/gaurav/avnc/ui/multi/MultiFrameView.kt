@@ -13,6 +13,8 @@ import android.content.Context
 import android.graphics.PointF
 import android.graphics.RectF
 import android.opengl.GLSurfaceView
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.MotionEvent
 import androidx.core.view.isVisible
@@ -25,15 +27,26 @@ import com.gaurav.avnc.vnc.VncClient
 
 class MultiFrameView(context: Context, attrs: AttributeSet? = null) : GLSurfaceView(context, attrs) {
 
+    private val renderHandler = Handler(Looper.getMainLooper())
     private val frameState = FrameState()
     private var client: VncClient? = null
     private var sessionId = 0L
     private var broadcaster: InputBroadcaster? = null
+    var syncInput = false
 
     private val target = object : FrameRenderTarget {
         override val client get() = this@MultiFrameView.client
         override val frameState get() = this@MultiFrameView.frameState
         override val drawRemoteCursor = true
+    }
+
+    private val renderTicker = object : Runnable {
+        override fun run() {
+            if (isVisible && client?.connected == true) {
+                requestRender()
+                renderHandler.postDelayed(this, RENDER_INTERVAL_MS)
+            }
+        }
     }
 
     init {
@@ -47,7 +60,23 @@ class MultiFrameView(context: Context, attrs: AttributeSet? = null) : GLSurfaceV
         this.client = client
         this.broadcaster = broadcaster
         isVisible = client != null
+        restartRenderTicker()
         requestRender()
+    }
+
+    override fun onDetachedFromWindow() {
+        stopRenderTicker()
+        super.onDetachedFromWindow()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        restartRenderTicker()
+    }
+
+    override fun onPause() {
+        stopRenderTicker()
+        super.onPause()
     }
 
     fun setFramebufferSize(width: Int, height: Int) {
@@ -64,6 +93,9 @@ class MultiFrameView(context: Context, attrs: AttributeSet? = null) : GLSurfaceV
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        parent?.requestDisallowInterceptTouchEvent(event.actionMasked != MotionEvent.ACTION_UP &&
+                                                   event.actionMasked != MotionEvent.ACTION_CANCEL)
+
         val fb = frameState.toFb(PointF(event.x, event.y)) ?: return true
         val fbWidth = frameState.fbWidth.coerceAtLeast(1f)
         val fbHeight = frameState.fbHeight.coerceAtLeast(1f)
@@ -72,18 +104,38 @@ class MultiFrameView(context: Context, attrs: AttributeSet? = null) : GLSurfaceV
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                if (syncInput)
+                    broadcaster?.clearTargets()
+                else
+                    broadcaster?.setTargets(setOf(sessionId))
                 broadcaster?.sendNormalizedPointerButtonDown(PointerButton.Left, xRatio, yRatio)
             }
             MotionEvent.ACTION_MOVE -> {
-                broadcaster?.sendNormalizedPointerButtonDown(PointerButton.None, xRatio, yRatio)
+                broadcaster?.sendNormalizedPointerMove(xRatio, yRatio)
             }
             MotionEvent.ACTION_UP -> {
                 broadcaster?.sendNormalizedPointerButtonUp(PointerButton.Left, xRatio, yRatio)
+                broadcaster?.clearTargets()
             }
             MotionEvent.ACTION_CANCEL -> {
                 broadcaster?.sendNormalizedPointerButtonRelease(xRatio, yRatio)
+                broadcaster?.clearTargets()
             }
         }
         return true
+    }
+
+    private fun restartRenderTicker() {
+        stopRenderTicker()
+        if (client?.connected == true)
+            renderHandler.post(renderTicker)
+    }
+
+    private fun stopRenderTicker() {
+        renderHandler.removeCallbacks(renderTicker)
+    }
+
+    companion object {
+        private const val RENDER_INTERVAL_MS = 100L
     }
 }

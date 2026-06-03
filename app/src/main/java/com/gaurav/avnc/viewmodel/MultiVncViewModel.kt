@@ -21,6 +21,7 @@ import com.gaurav.avnc.util.getKnownHostsFile
 import com.gaurav.avnc.util.isCertificateTrusted
 import com.gaurav.avnc.vnc.UserCredential
 import com.gaurav.avnc.vnc.VncClient
+import kotlinx.coroutines.delay
 import java.io.File
 import java.security.cert.X509Certificate
 
@@ -31,6 +32,13 @@ class MultiVncViewModel(app: Application) : BaseViewModel(app) {
 
     private val sessionManager = MultiRemoteSessionManager(SessionObserver())
     val inputBroadcaster = InputBroadcaster { sessionManager.connectedSnapshots() }
+
+    private val manuallyStoppedSessionIds = mutableSetOf<Long>()
+    private val connectedProfileIds = mutableSetOf<Long>()
+    private val reconnectingSessionIds = mutableSetOf<Long>()
+
+    @Volatile
+    private var activityResumed = false
 
     override fun onCleared() {
         super.onCleared()
@@ -50,17 +58,72 @@ class MultiVncViewModel(app: Application) : BaseViewModel(app) {
     }
 
     fun stop(sessionId: Long) {
+        manuallyStoppedSessionIds.add(sessionId)
         sessionManager.stop(sessionId)
         publishSessions()
     }
 
+    fun reconnect(sessionId: Long) {
+        val snapshot = sessionManager.snapshot(sessionId) ?: return
+        manuallyStoppedSessionIds.remove(sessionId)
+        reconnectingSessionIds.remove(sessionId)
+
+        if (snapshot.state == MultiRemoteSessionManager.State.Disconnected) {
+            sessionManager.forgetDisconnected(sessionId)
+            sessionManager.start(snapshot.profile)
+            publishSessions()
+        }
+    }
+
     fun stopAll() {
+        manuallyStoppedSessionIds.addAll(sessionManager.snapshots().map { it.id })
         sessionManager.stopAll()
         publishSessions()
     }
 
+    fun onActivityResumed() {
+        activityResumed = true
+        reconnectDisconnectedSessions()
+    }
+
+    fun onActivityPaused() {
+        activityResumed = false
+    }
+
     private fun publishSessions() {
         sessions.postValue(sessionManager.snapshots())
+    }
+
+    private fun reconnectDisconnectedSessions() {
+        sessionManager.snapshots()
+                .filter { it.state == MultiRemoteSessionManager.State.Disconnected }
+                .filter { canReconnect(it) }
+                .forEach { scheduleReconnect(it.id, it.profile, 0L) }
+    }
+
+    private fun scheduleReconnect(sessionId: Long, profile: ServerProfile, delayMs: Long = RECONNECT_DELAY_MS) {
+        if (!reconnectingSessionIds.add(sessionId))
+            return
+
+        launchMain {
+            if (delayMs > 0)
+                delay(delayMs)
+
+            reconnectingSessionIds.remove(sessionId)
+            val snapshot = sessionManager.snapshot(sessionId) ?: return@launchMain
+            if (snapshot.state != MultiRemoteSessionManager.State.Disconnected || !canReconnect(snapshot))
+                return@launchMain
+
+            sessionManager.forgetDisconnected(sessionId)
+            sessionManager.start(profile)
+            publishSessions()
+        }
+    }
+
+    private fun canReconnect(snapshot: MultiRemoteSessionManager.SessionSnapshot): Boolean {
+        return activityResumed &&
+               snapshot.id !in manuallyStoppedSessionIds &&
+               snapshot.profile.ID in connectedProfileIds
     }
 
     private inner class SessionObserver : MultiRemoteSessionManager.Observer {
@@ -70,11 +133,17 @@ class MultiVncViewModel(app: Application) : BaseViewModel(app) {
         }
 
         override fun onSessionConnected(sessionId: Long, profile: ServerProfile, vncClient: VncClient, messenger: Messenger) {
+            if (profile.ID != 0L)
+                connectedProfileIds.add(profile.ID)
             publishSessions()
         }
 
         override fun onSessionDisconnected(sessionId: Long, profile: ServerProfile) {
             publishSessions()
+            sessionManager.snapshot(sessionId)?.let {
+                if (canReconnect(it))
+                    scheduleReconnect(sessionId, profile)
+            }
         }
 
         override fun onSessionConnectionError(sessionId: Long, profile: ServerProfile, error: Throwable) {
@@ -131,5 +200,9 @@ class MultiVncViewModel(app: Application) : BaseViewModel(app) {
         override fun getSshKeyPassword(sessionId: Long, profile: ServerProfile): String {
             return profile.sshPassword
         }
+    }
+
+    companion object {
+        private const val RECONNECT_DELAY_MS = 1000L
     }
 }

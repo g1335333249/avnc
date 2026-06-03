@@ -70,13 +70,12 @@
             android:layout_gravity="bottom|end"
             android:layout_margin="@dimen/margin_normal"
             android:gravity="end"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             app:isVisible="@{viewModel.profileSelectionMode}">
 
             <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/margin_small"
                 android:onClick="@{()-> viewModel.clearProfileSelection()}"
                 android:text="@string/title_cancel"
                 app:icon="@drawable/ic_clear" />
@@ -84,6 +83,15 @@
             <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/margin_small"
+                android:onClick="@{()-> viewModel.selectAllProfiles()}"
+                android:text="@string/title_select_all"
+                app:icon="@drawable/ic_broadcast" />
+
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/margin_small"
                 android:onClick="@{()-> viewModel.startSelectedConnections()}"
                 android:text="@string/title_start_selected"
                 app:icon="@drawable/ic_broadcast"

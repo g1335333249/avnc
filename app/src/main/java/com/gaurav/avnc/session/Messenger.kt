@@ -63,6 +63,10 @@ class Messenger(private val client: VncClient) {
         execute { client.sendPointerEvent(x, y, mask) }
     }
 
+    fun sendPointerMove(p: PointF) {
+        sendPointerEvent(pointerButtonMask, p)
+    }
+
     fun sendPointerButtonDown(button: PointerButton, p: PointF) {
         pointerButtonMask = pointerButtonMask or button.bitMask
         sendPointerEvent(pointerButtonMask, p)

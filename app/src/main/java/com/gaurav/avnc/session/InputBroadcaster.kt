@@ -49,6 +49,12 @@ class InputBroadcaster(private val sessionProvider: () -> Iterable<MultiRemoteSe
         return targetMessengers().onEach { it.sendPointerButtonRelease(point) }.count()
     }
 
+    fun sendNormalizedPointerMove(xRatio: Float, yRatio: Float): Int {
+        return targetSessions().onEach {
+            it.messenger?.sendPointerMove(it.mapNormalizedPoint(xRatio, yRatio))
+        }.count()
+    }
+
     fun sendNormalizedPointerButtonDown(button: PointerButton, xRatio: Float, yRatio: Float): Int {
         return targetSessions().onEach {
             it.messenger?.sendPointerButtonDown(button, it.mapNormalizedPoint(xRatio, yRatio))
@@ -87,8 +93,10 @@ class InputBroadcaster(private val sessionProvider: () -> Iterable<MultiRemoteSe
     }
 
     private fun MultiRemoteSessionManager.SessionSnapshot.mapNormalizedPoint(xRatio: Float, yRatio: Float): PointF {
-        val x = xRatio.coerceIn(0f, 1f) * framebufferWidth.coerceAtLeast(1)
-        val y = yRatio.coerceIn(0f, 1f) * framebufferHeight.coerceAtLeast(1)
+        val width = framebufferWidth.coerceAtLeast(1)
+        val height = framebufferHeight.coerceAtLeast(1)
+        val x = xRatio.coerceIn(0f, 1f) * (width - 1)
+        val y = yRatio.coerceIn(0f, 1f) * (height - 1)
         return PointF(x, y)
     }
 }

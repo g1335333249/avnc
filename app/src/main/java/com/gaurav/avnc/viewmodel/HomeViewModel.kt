@@ -85,6 +85,14 @@ class HomeViewModel(app: Application) : BaseViewModel(app) {
         profileSelectionMode.value = true
     }
 
+    fun selectAllProfiles() {
+        val ids = serverProfiles.value.orEmpty()
+                .map { it.ID }
+                .filter { it != 0L }
+                .toSet()
+        selectedProfileIds.value = ids
+    }
+
     fun clearProfileSelection() {
         profileSelectionMode.value = false
         selectedProfileIds.value = emptySet()

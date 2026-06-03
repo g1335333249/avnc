@@ -21,7 +21,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.gaurav.avnc.R
@@ -46,6 +46,7 @@ class MultiVncActivity : AppCompatActivity() {
     private val viewModel by viewModels<MultiVncViewModel>()
     private lateinit var adapter: SessionAdapter
     private lateinit var recyclerView: RecyclerView
+    private lateinit var syncInputButton: MaterialButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,8 +54,17 @@ class MultiVncActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.sessions_rv)
         adapter = SessionAdapter(viewModel)
-        recyclerView.layoutManager = GridLayoutManager(this, 2)
+        recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
+
+        syncInputButton = findViewById(R.id.sync_input_btn)
+        syncInputButton.isCheckable = true
+        syncInputButton.addOnCheckedChangeListener { _, isChecked ->
+            adapter.syncInput = isChecked
+            adapter.updateSyncInput(recyclerView)
+            if (!isChecked)
+                viewModel.inputBroadcaster.clearTargets()
+        }
 
         findViewById<MaterialButton>(R.id.stop_all_btn).setOnClickListener {
             viewModel.stopAll()
@@ -65,7 +75,7 @@ class MultiVncActivity : AppCompatActivity() {
 
         val profileIds = intent.getLongArrayExtra(PROFILE_IDS_KEY)
         if (profileIds == null || profileIds.isEmpty()) {
-            Toast.makeText(this, "No servers selected", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.msg_no_servers_selected, Toast.LENGTH_LONG).show()
             finish()
             return
         }
@@ -74,10 +84,12 @@ class MultiVncActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.onActivityResumed()
         adapter.resumeVisibleFrames(recyclerView)
     }
 
     override fun onPause() {
+        viewModel.onActivityPaused()
         adapter.pauseVisibleFrames(recyclerView)
         super.onPause()
     }
@@ -86,6 +98,7 @@ class MultiVncActivity : AppCompatActivity() {
         : ListAdapter<MultiRemoteSessionManager.SessionSnapshot, SessionAdapter.ViewHolder>(Differ) {
 
         private val frameViews = mutableMapOf<Long, MultiFrameView>()
+        var syncInput = false
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.multi_vnc_session_item, parent, false)
@@ -104,6 +117,11 @@ class MultiVncActivity : AppCompatActivity() {
 
         fun renderSession(sessionId: Long) {
             frameViews[sessionId]?.requestRender()
+        }
+
+        fun updateSyncInput(recyclerView: RecyclerView) {
+            frameViews.values.forEach { it.syncInput = syncInput }
+            forEachVisibleHolder(recyclerView) { it.frameView.syncInput = syncInput }
         }
 
         fun resumeVisibleFrames(recyclerView: RecyclerView) {
@@ -125,23 +143,54 @@ class MultiVncActivity : AppCompatActivity() {
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val frameView: MultiFrameView = view.findViewById(R.id.frame_view)
             private val titleView: TextView = view.findViewById(R.id.title)
+            private val stateContainer: View = view.findViewById(R.id.state_container)
             private val stateView: TextView = view.findViewById(R.id.state)
             private val stopBtn: MaterialButton = view.findViewById(R.id.stop_btn)
+            private val reconnectBtn: MaterialButton = view.findViewById(R.id.reconnect_btn)
             var sessionId = 0L
                 private set
 
             fun bind(snapshot: MultiRemoteSessionManager.SessionSnapshot) {
                 sessionId = snapshot.id
                 titleView.text = snapshot.profile.name.ifBlank { "${snapshot.profile.host}:${snapshot.profile.port}" }
-                stateView.text = snapshot.lastError?.message ?: snapshot.state.toString()
-                stateView.isVisible = snapshot.state != MultiRemoteSessionManager.State.Connected
+                stateView.text = stateText(snapshot)
+                stateContainer.isVisible = snapshot.state != MultiRemoteSessionManager.State.Connected
+                reconnectBtn.isVisible = snapshot.state == MultiRemoteSessionManager.State.Disconnected
 
                 frameView.bind(snapshot.id, snapshot.client, viewModel.inputBroadcaster)
+                frameView.syncInput = syncInput
                 frameView.setFramebufferSize(snapshot.framebufferWidth, snapshot.framebufferHeight)
                 frameViews[snapshot.id] = frameView
 
                 stopBtn.setOnClickListener { viewModel.stop(snapshot.id) }
+                reconnectBtn.setOnClickListener { viewModel.reconnect(snapshot.id) }
                 frameView.onResume()
+            }
+
+            private fun stateText(snapshot: MultiRemoteSessionManager.SessionSnapshot): String {
+                val stateTitle = when (snapshot.state) {
+                    MultiRemoteSessionManager.State.Created -> R.string.state_created
+                    MultiRemoteSessionManager.State.Connecting -> R.string.state_connecting
+                    MultiRemoteSessionManager.State.Connected -> R.string.state_connected
+                    MultiRemoteSessionManager.State.Disconnecting -> R.string.state_disconnecting
+                    MultiRemoteSessionManager.State.Disconnected -> R.string.state_disconnected
+                }.let(itemView.context::getString)
+
+                val errorMessage = snapshot.lastError?.let(::localizedErrorMessage)
+                return if (errorMessage.isNullOrBlank()) {
+                    stateTitle
+                } else {
+                    itemView.context.getString(R.string.state_with_error, stateTitle, errorMessage)
+                }
+            }
+
+            private fun localizedErrorMessage(error: Throwable): String {
+                val message = error.message ?: return error.javaClass.simpleName
+                return if (message.equals("Connection aborted", ignoreCase = true)) {
+                    itemView.context.getString(R.string.msg_connection_aborted)
+                } else {
+                    message
+                }
             }
         }
 
